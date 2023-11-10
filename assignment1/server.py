@@ -58,26 +58,9 @@ def handle_conn(conn, client_addr):
                 ping_channel_write.send(message.decode('utf-8'))
             # TODO:
             # handle 'fetch' and 'publish' request from client here
-            message_str_args = (message.decode('utf-8')).split()
-            cmd = message_str_args[0]
-            fname = message_str_args[1]
-
-            if cmd not in ('publish', 'fetch'):
-                raise UnknownCommandError(message)
-            
-            if cmd == 'publish':
-                if fname in database:
-                    database[fname].append(client_addr)
-                else:
-                    database[fname] = [client_addr]
-            
-            if cmd == 'fetch':
-                return
-            
     finally:
         conn.close()
         del clients[client_addr]
-
 
 def print_usage():
     print('usage: [discover | ping] <hostname>')
