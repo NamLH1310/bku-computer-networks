@@ -60,8 +60,6 @@ def handle_conn(conn, client_addr):
                     print("Files received from client:")
                     for file in file_list:
                         print(f"{file}")
-
-            print(f"{message}")
             if message == b'':
                 return
             elif message == b'OK':
@@ -79,22 +77,6 @@ def handle_discover(conn):
     """TODO"""
     conn.send(bytes('discover', 'utf-8'))
     print("Sent 'discover' command to client.")
-    #while True:
-    #    received_data = conn.recv(4096).decode('utf-8')
-        #print(f"{received_data}")
-        #print("2")
-    #    if received_data:
-        # Xử lý dữ liệu JSON nhận được từ client
-    #        data = json.loads(received_data)
-    #        if 'files' in data:
-    #            file_list = data['files']
-    #            print("Files received from client:")
-    #            for file in file_list:
-    #                print(f"{file}")
-    #        else:
-    #            print("Không có thông tin tệp tin từ client.")
-    #    else:
-    #        print("Không có dữ liệu nhận được từ client.")
 
 def handle_ping(conn):
     conn.send(bytes('ping', 'utf-8'))

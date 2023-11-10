@@ -41,6 +41,7 @@ def handle_publish(lname, fname, conn):
     """TODO: publish file to server"""
     host, port = server_addr
 
+
 def handle_fetch(fname, conn):
     """TODO: send request to server
         -> server return data consist of peer host and port
@@ -73,8 +74,6 @@ def handle_request_from_server(conn):
             conn.send(b'OK')
         elif message == b'discover':
             folder_path = "C:\shared_folder"
-            #conn.sendall(folder_path.encode('utf-8'))
-            #print("sent")
             if os.path.exists(folder_path) and os.path.isdir(folder_path):
                 file_list = os.listdir(folder_path)
 
