@@ -1,11 +1,16 @@
 import argparse
 import time
-import threading
+from _thread import *
 import asyncio
 import logging
+import socket
+import sys
 
 logging.basicConfig(format='%(asctime)s %(lineno)d %(levelname)s:%(message)s', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
+HOST = '0.0.0.0'
+PORT = 8080
 
 class UnknownCommandError(Exception):
     def __init__(self, cmd):
@@ -30,91 +35,58 @@ def parse_cmd(cmd_str):
 def print_usage():
     print('usage: publish <lname> <fname> | fetch <fname>')
 
-def handle_publish(lname, fname):
+def handle_publish(lname, fname, conn):
     """TODO: publish file to server"""
+    host, port = server_addr
 
-def handle_fetch(fname):
-    """TODO: send request to peer"""
+def handle_fetch(fname, conn):
+    """TODO: send request to server
+        -> server return data consist of peer host and port
+        -> send request retrieve file from peer
+        -> peer send back file (using ftp)
+    """
 
-def shell_command_handler():
-    time.sleep(0.5)
+
+def shell_command_handler(conn):
     while True:
         print('> ', end='')
         try:
             cmd, args = parse_cmd(input())
             if cmd == 'publish':
-                handle_publish(args[0], args[1])
+                handle_publish(args[0], args[1], conn)
             elif cmd == 'fetch':
-                handle_fetch(args)
+                handle_fetch(args, conn)
         except UnknownCommandError as e:
             print_usage()
         except IndexError:
             print_usage()
 
 
-def client_connected_cb(reader, writer):
-    # Use peername as client ID
-    client_id = writer.get_extra_info('peername')
-
-    logger.info('Client connected: {}'.format(client_id))
-
-    # Define the clean up function here
-    def client_cleanup(fu):
-        logger.info('Cleaning up client {}'.format(client_id))
-        try:  # Retrievre the result and ignore whatever returned, since it's just cleaning
-            fu.result()
-        except Exception as e:
-            pass
-        # Remove the client from client records
-
-    task = asyncio.ensure_future(client_task(reader, writer))
-    task.add_done_callback(client_cleanup)
-
-async def client_task(reader, writer):
-    client_addr = writer.get_extra_info('peername')
-    logger.info('Start echoing back to {}'.format(client_addr))
-
+def handle_request_from_server(conn):
     while True:
-        data = await reader.read(1024)
-        if data == b'':
-            logger.info('Received EOF. Client disconnected.')
-            return
-        else:
-            # TODO
-            # handle 'ping' and 'discover' request from the server
-            # handle request for downloading file: use ftp
-
-
-def listen_and_serve(host, port):
-    loop = asyncio.get_event_loop()
-    server_coroutine = asyncio.start_server(client_connected_cb,
-                                       host=host,
-                                       port=port,
-                                       loop=loop)
-    server = loop.run_until_complete(server_coroutine)
-
-    try:
-        logger.info('Serving on {}:{}'.format(host, port))
-        loop.run_forever()
-    except Exception as e:
-        raise e
-    finally:
-        # Close the server
-        server.close()
-        loop.run_until_complete(server.wait_closed())
-        loop.close()
+        message = conn.recv(2048)
+        if message == b'':
+            sys.exit(0)
+        elif message == b'ping':
+            conn.send(b'OK')
+        # TODO:
+        # handle 'discover' request from server
 
 if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument('-H', '--server-host')
     arg_parser.add_argument('-P', '--server-port')
     args = arg_parser.parse_args()
-    server_hostname = args.server_host or 'localhost'
+    server_host = args.server_host or 'localhost'
     server_port = int(args.server_port or '8080')
 
-    t = threading.Thread(target=shell_command_handler)
-    t.daemon = True
-    t.start()
+    try:
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.connect((server_host, server_port))
 
-    listen_and_serve('0.0.0.0', 8080)
+        start_new_thread(handle_request_from_server, (server,))
+
+        shell_command_handler(server)
+    finally:
+        server.close()
 
