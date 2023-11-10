@@ -5,6 +5,7 @@ import asyncio
 import logging
 import socket
 import sys
+import os
 
 logging.basicConfig(format='%(asctime)s %(lineno)d %(levelname)s:%(message)s', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -35,9 +36,36 @@ def parse_cmd(cmd_str):
 def print_usage():
     print('usage: publish <lname> <fname> | fetch <fname>')
 
+def get_directory_path(directory_name, root_path):
+    for root, dirs, files in os.walk(root_path):
+        if directory_name in dirs:
+            return os.path.abspath(os.path.join(root, directory_name))
+        else:
+            logger.info(f"{directory_name} isn't found.")
+            return None
+        
+   
 def handle_publish(lname, fname, conn):
     """TODO: publish file to server"""
-    host, port = server_addr
+
+    try:
+        root_path = os.path.abspath(os.sep)
+        shared_repository_name = "Shared_repository"
+        shared_repository_path = get_directory_path(shared_repository_name, root_path)
+
+        if shared_repository_path is None:
+            shared_repository_path = "C:\\Shared_repository"
+            os.makedirs(shared_repository_path)
+
+        shared_file_path = shared_repository_path + "\\" + fname
+        local_file_path = os.path.abspath(lname)
+        os.rename(local_file_path, shared_file_path)
+
+        cmd = b'publish'
+        conn.send(cmd + b' ' + fname.encode('utf-8'))
+
+    except Exception as e:
+        raise e
 
 def handle_fetch(fname, conn):
     """TODO: send request to server
