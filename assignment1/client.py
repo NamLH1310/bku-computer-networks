@@ -5,6 +5,8 @@ import asyncio
 import logging
 import socket
 import sys
+import json
+import os
 
 logging.basicConfig(format='%(asctime)s %(lineno)d %(levelname)s:%(message)s', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -64,12 +66,29 @@ def shell_command_handler(conn):
 
 def handle_request_from_server(conn):
     while True:
-        message = conn.recv(2048)
+        message = conn.recv(4096)
         if message == b'':
             sys.exit(0)
         elif message == b'ping':
             conn.send(b'OK')
-        # TODO:
+        elif message == b'discover':
+            folder_path = "C:\shared_folder"
+            #conn.sendall(folder_path.encode('utf-8'))
+            #print("sent")
+            if os.path.exists(folder_path) and os.path.isdir(folder_path):
+                file_list = os.listdir(folder_path)
+
+                # Tạo một JSON chứa thông tin tên các tệp tin
+                files_data = json.dumps({'files': file_list})
+                try:
+                    conn.sendall(files_data.encode('utf-8'))
+                    print("send data successfully")
+                    print(f"Data to be sent: {files_data}")
+                except socket.error as e:
+                    logger.error(e)
+            else:
+                print(f"No folder path {folder_path}")
+                # TODO:
         # handle 'discover' request from server
 
 if __name__ == '__main__':
