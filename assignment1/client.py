@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 HOST = '0.0.0.0'
 PORT = 8080
+PEER_SRV_HOST = ""
 PEER_SRV_PORT = None
 REPOSITORY_DIR = "./"
 
@@ -66,7 +67,7 @@ def get_peers_from_srv(fname: str, host: str, port: int):
         return peers
 
 
-def handle_fetch_cmd(fname, conn):
+def handle_fetch_cmd(fname):
     """TODO: send request to server
         -> server return data consist of peer host and port
         -> send request retrieve file from peer
@@ -93,7 +94,7 @@ def handle_fetch_cmd(fname, conn):
 
     file_transfer.fetch_file(fname=fname, host=p_host, port=p_port, file_dir=f"{REPOSITORY_DIR}")
     logger.debug(f"Fetched file '{fname}' from peer {peer}.")
-    print(f"Successfully fetched {fname}.")
+    print(f"Successfully fetched '{fname}'.")
 
 def shell_command_handler(conn):
     while True:
@@ -165,6 +166,7 @@ if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument('-H', '--server-host')
     arg_parser.add_argument('-P', '--server-port')
+    arg_parser.add_argument('--peer-srv-host')
     arg_parser.add_argument('--peer-srv-port')
     arg_parser.add_argument('--shared-repo')
     args = arg_parser.parse_args()
@@ -172,6 +174,7 @@ if __name__ == '__main__':
     server_port = int(args.server_port or '8080')
 
     # if the seeding server's port is not specified, tell Python to choose a random unused port
+    PEER_SRV_HOST = (args.peer_srv_host or "")
     PEER_SRV_PORT = int(args.peer_srv_port or 0)    
     REPOSITORY_DIR = args.shared_repo
 
@@ -180,7 +183,7 @@ if __name__ == '__main__':
         server.connect((server_host, server_port))
 
         start_new_thread(handle_request_from_server, (server,))
-        peer_srv = socketserver.ThreadingTCPServer(('', PEER_SRV_PORT), PeerRequestHandler)
+        peer_srv = socketserver.ThreadingTCPServer((PEER_SRV_HOST, PEER_SRV_PORT), PeerRequestHandler)
         PEER_SRV_PORT = peer_srv.server_address[1]
         print(f"Start listening from other peers at port {PEER_SRV_PORT}.")
 
