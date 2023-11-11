@@ -5,14 +5,17 @@ import asyncio
 import logging
 import socket
 import sys
-import json
 import os
+import socket
+import json
 
 logging.basicConfig(format='%(asctime)s %(lineno)d %(levelname)s:%(message)s', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 HOST = '0.0.0.0'
 PORT = 8080
+
+file_mapping_table = {}
 
 class UnknownCommandError(Exception):
     def __init__(self, cmd):
@@ -21,13 +24,11 @@ class UnknownCommandError(Exception):
     def __str__(self):
         return f'unknown command: {self.cmd}'
 
-
 def parse_cmd(cmd_str):
     cmd_args = cmd_str.split()
     cmd = cmd_args[0]
     if cmd not in ('publish', 'fetch'):
         raise UnknownCommandError(cmd_str)
-
     if cmd == 'publish':
         lname, fname = cmd_args[1], cmd_args[2]
         return cmd, (lname, fname)
@@ -37,9 +38,37 @@ def parse_cmd(cmd_str):
 def print_usage():
     print('usage: publish <lname> <fname> | fetch <fname>')
 
+
+def get_filename_path(filename, root_path):
+    for root, dirs, files in os.walk(root_path):
+        if filename in files:
+            return os.path.join(root, filename)
+    return f"{filename} not found."
+
+def get_directory_path(directory_name, root_path):
+    for root, dirs, files in os.walk(root_path):
+        if directory_name in dirs:
+            return os.path.abspath(os.path.join(root, directory_name))
+        else:
+            logger.info(f"{directory_name} isn't found.")
+            return None
+        
 def handle_publish(lname, fname, conn):
     """TODO: publish file to server"""
-    host, port = server_addr
+
+    try:
+
+        file_mapping_table[fname] = lname
+        print(file_mapping_table)
+
+        message = json.dumps({'publish' : fname})
+        try:
+            conn.sendall(message.encode('utf-8'))
+        except socket.error as e:
+            logger.error(e)
+
+    except Exception as e:
+        raise e
 
 
 def handle_fetch(fname, conn):
@@ -73,22 +102,23 @@ def handle_request_from_server(conn):
         elif message == b'ping':
             conn.send(b'OK')
         elif message == b'discover':
-            folder_path = "C:\shared_folder"
-            if os.path.exists(folder_path) and os.path.isdir(folder_path):
-                file_list = os.listdir(folder_path)
+            # folder_path = "C:\shared_folder"
+            # if os.path.exists(folder_path) and os.path.isdir(folder_path):
+                # file_list = os.listdir(folder_path)
+            file_list = []
+            for fname, lname in file_mapping_table.items():
+                if os.path.isfile(lname):
+                    file_list.append(fname)
 
-                # Tạo một JSON chứa thông tin tên các tệp tin
-                files_data = json.dumps({'files': file_list})
-                try:
-                    conn.sendall(files_data.encode('utf-8'))
-                    print("send data successfully")
-                    print(f"Data to be sent: {files_data}")
-                except socket.error as e:
+            files_data = json.dumps({'files': file_list})
+            try:
+                conn.sendall(files_data.encode('utf-8'))
+                print("Send data successfully")
+                print(f"Data to be sent: {files_data}")
+            except socket.error as e:
                     logger.error(e)
-            else:
-                print(f"No folder path {folder_path}")
-                # TODO:
-        # handle 'discover' request from server
+            # else:
+                # print(f"No folder path {folder_path}")
 
 if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser()

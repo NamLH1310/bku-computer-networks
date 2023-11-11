@@ -3,6 +3,7 @@ from _thread import *
 import time
 import socket
 import logging
+import json
 from multiprocessing import Pipe
 
 ping_channel_read, ping_channel_write = Pipe(duplex=False)
@@ -52,20 +53,32 @@ def handle_conn(conn, client_addr):
     try:
         while True:
             message = conn.recv(2048)
-            if message != b'' and message != b'ok':
-                json_data = json.loads(message.decode('utf-8'))
-
-                if 'files' in json_data:
-                    file_list = json_data['files']
-                    print("Files received from client:")
-                    for file in file_list:
-                        print(f"{file}")
             if message == b'':
                 return
             elif message == b'OK':
                 ping_channel_write.send(message.decode('utf-8'))
-            # TODO:
-            # handle 'fetch' and 'publish' request from client here
+            else:
+            # handle 'discover' reply from client
+                json_data = json.loads(message.decode('utf-8'))
+                if 'files' in json_data:
+                    file_list = json_data['files']
+                    print("Files received from client: ")
+                    for file in file_list:
+                        print(f"{file}")
+            
+            # handle 'publish' request from client
+                elif 'publish' in json_data:
+                    print("Published_file received from client: ")
+                    fname = json_data['publish']
+                    if fname in database:
+                        database[fname].append(client_addr)
+                    else:
+                        database[fname] = [client_addr]
+                    print(database)
+            # handle 'fetch' request from client
+                else:
+                    return
+            
     finally:
         conn.close()
         del clients[client_addr]
