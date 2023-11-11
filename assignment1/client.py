@@ -37,22 +37,7 @@ def parse_cmd(cmd_str):
 
 def print_usage():
     print('usage: publish <lname> <fname> | fetch <fname>')
-
-
-def get_filename_path(filename, root_path):
-    for root, dirs, files in os.walk(root_path):
-        if filename in files:
-            return os.path.join(root, filename)
-    return f"{filename} not found."
-
-def get_directory_path(directory_name, root_path):
-    for root, dirs, files in os.walk(root_path):
-        if directory_name in dirs:
-            return os.path.abspath(os.path.join(root, directory_name))
-        else:
-            logger.info(f"{directory_name} isn't found.")
-            return None
-        
+     
 def handle_publish(lname, fname, conn):
     """TODO: publish file to server"""
 
