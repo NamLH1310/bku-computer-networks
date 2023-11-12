@@ -4,6 +4,7 @@ import time
 import socket
 import logging
 import file_transfer
+import json
 from multiprocessing import Pipe
 
 ping_channel_read, ping_channel_write = Pipe(duplex=False)
@@ -66,7 +67,7 @@ def handle_fetch_request(raw_req: bytes):
     parsed_rq = json.loads(raw_req)
     fname = parsed_rq['fname']
     if fname not in database:
-        return json.dumps([])
+        return json.dumps([]).encode()
     peers = database[fname]
     return json.dumps(peers).encode()
 
@@ -88,9 +89,28 @@ def handle_conn(conn, client_addr):
                 resp = handle_fetch_request(message)
                 conn.send(resp)
             else:
-            # TODO:
-            # handle 'fetch' and 'publish' request from client here
-                pass
+            # handle 'discover' reply from client
+                json_data = json.loads(message.decode('utf-8'))
+                if 'files' in json_data:
+                    file_list = json_data['files']
+                    print("Files received from client: ")
+                    for file in file_list:
+                        print(f"{file}")
+            
+            # handle 'publish' request from client
+                elif 'publish' in json_data:
+                    print("Published_file received from client: ")
+                    fname = json_data['publish']
+                    if fname in database:
+                        database[fname].append((conn.getpeername()[0], json_data['seeding_port']))
+                    else:
+                        database[fname] = [(conn.getpeername()[0], json_data['seeding_port'])]
+                    print(database)
+            # handle 'fetch' request from client
+                else:
+                    pass
+    except ConnectionResetError as e:
+        pass
     finally:
         conn.close()
         del clients[client_addr]
@@ -100,6 +120,8 @@ def print_usage():
 
 def handle_discover(conn):
     """TODO"""
+    conn.send(bytes('discover', 'utf-8'))
+    print("Sent 'discover' command to client.")
 
 def handle_ping(conn):
     conn.send(bytes('ping', 'utf-8'))
