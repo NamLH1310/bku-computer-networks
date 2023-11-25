@@ -102,7 +102,10 @@ def handle_conn(conn, client_addr):
                     print("Published_file received from client: ")
                     fname = json_data['publish']
                     if fname in database:
-                        database[fname].append((conn.getpeername()[0], json_data['seeding_port']))
+                        if (conn.getpeername()[0], json_data['seeding_port']) in database.values():
+                            pass
+                        else:
+                            database[fname].append((conn.getpeername()[0], json_data['seeding_port']))
                     else:
                         database[fname] = [(conn.getpeername()[0], json_data['seeding_port'])]
                     print(database)
