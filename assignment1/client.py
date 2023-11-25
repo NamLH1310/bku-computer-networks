@@ -59,9 +59,23 @@ def handle_publish(lname, fname, conn):
     """TODO: publish file to server"""
 
     try:
-
-        file_mapping_table[fname] = lname
+        if fname in file_mapping_table:
+            if file_mapping_table[fname] == lname:
+                print('File has been published before.')
+            elif file_mapping_table[fname] != lname:
+                print(f'File named {fname} already exists. Update present local path of {fname} to new local path {lname}.')
+                file_mapping_table[fname] = lname
+        elif lname in file_mapping_table:
+            for file_name, local_path in file_mapping_table.items():
+                if local_path == lname and file_name != fname:
+                    print(f'Local path {lname} belongs to a file with different name than {fname}. Update name of file to {fname}.')
+                    del file_mapping_table[fname]
+                    file_mapping_table[fname] = lname
+                    break
+        else:
+            file_mapping_table[fname] = lname
         print(file_mapping_table)
+    
         message = json.dumps({'publish' : fname, 'seeding_port': PEER_SRV_PORT})
         try:
             conn.sendall(message.encode('utf-8'))
