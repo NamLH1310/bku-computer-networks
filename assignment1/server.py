@@ -3,6 +3,7 @@ from _thread import *
 import time
 import socket
 import logging
+import file_transfer
 import json
 from multiprocessing import Pipe
 
@@ -20,8 +21,13 @@ logging.basicConfig(format='%(asctime)s %(lineno)d %(levelname)s:%(message)s', l
 logger = logging.getLogger(__name__)
 
 # Connected client records
-clients = {}
-database = {}
+clients = {
+
+}
+
+database = {
+
+}
 
 status_bad_request = 404
 status_ok = 200
@@ -47,7 +53,28 @@ def listen_and_serve(host, port):
         clients[client_addr] = conn
 
         start_new_thread(handle_conn, (conn, client_addr))
+    
+def handle_fetch_request(raw_req: bytes):
+    """ Find all peers that contain the requested file and are currently active
 
+    Args:
+        parsed_req (bytes): raw `fetch` request received from a client
+
+    Returns:
+        bytes: A JSON response containing peers' addresses.
+    """
+
+    parsed_rq = json.loads(raw_req)
+    fname = parsed_rq['fname']
+    if fname not in database:
+        return json.dumps([]).encode()
+    peers = database[fname]
+    return json.dumps(peers).encode()
+
+def handle_request(request):
+    parsed_rq = json.loads(request)
+    if parsed_rq['op'] == 'fetch':
+        return handle_fetch_request(parsed_rq)
 
 def handle_conn(conn, client_addr):
     try:
@@ -57,6 +84,10 @@ def handle_conn(conn, client_addr):
                 return
             elif message == b'OK':
                 ping_channel_write.send(message.decode('utf-8'))
+            elif file_transfer.is_fetch_request(message):
+                # Response for the `fetch` request from a peer
+                resp = handle_fetch_request(message)
+                conn.send(resp)
             else:
             # handle 'discover' reply from client
                 json_data = json.loads(message.decode('utf-8'))
@@ -71,14 +102,18 @@ def handle_conn(conn, client_addr):
                     print("Published_file received from client: ")
                     fname = json_data['publish']
                     if fname in database:
-                        database[fname].append(client_addr)
+                        if (conn.getpeername()[0], json_data['seeding_port']) in database.values():
+                            pass
+                        else:
+                            database[fname].append((conn.getpeername()[0], json_data['seeding_port']))
                     else:
-                        database[fname] = [client_addr]
+                        database[fname] = [(conn.getpeername()[0], json_data['seeding_port'])]
                     print(database)
             # handle 'fetch' request from client
                 else:
-                    return
-            
+                    pass
+    except ConnectionResetError as e:
+        pass
     finally:
         conn.close()
         del clients[client_addr]
